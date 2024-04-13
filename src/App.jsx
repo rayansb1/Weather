@@ -1,129 +1,90 @@
-import { useState, useEffect } from 'react'
-import clear from './assets/clear.png'
-import cloud from './assets/cloud.png'
-import rain from './assets/rain.png'
+import React, { useState, useEffect } from 'react';
+import clear from './assets/clear.png';
+import cloud from './assets/cloud.png';
+import rain from './assets/rain.png';
+import './App.css';
 
-import './App.css'
 const api = {
   key: "1032d5bf6959b673cb7ba789aa37f83d",
   base: "https://api.openweathermap.org/data/2.5/",
 };
+
 function App() {
   const [search, setSearch] = useState("");
-  const [weather, setWeather] = useState({});
-  const [weatherCity1, setWeatherCity1] = useState({});
-  const [weatherCity2, setWeatherCity2] = useState({});
-  const city1="Riyadh";
-  const city2="Jeddah";
+  const [citiesWeather, setCitiesWeather] = useState([]);
+  const [userLocation, setUserLocation] = useState(null);
+
+  useEffect(() => {
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition((position) => {
+        setUserLocation({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude
+        });
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    if (userLocation) {
+      fetch(`${api.base}weather?lat=${userLocation.latitude}&lon=${userLocation.longitude}&units=metric&APPID=${api.key}`)
+        .then((res) => res.json())
+        .then((result) => {
+          // Check if the result contains valid data
+          if (result.cod === 200) {
+            setCitiesWeather(prevState => [...prevState, result]);
+          }
+        })
+        .catch((error) => {
+          console.error('Error fetching weather data:', error);
+        });
+    }
+  }, [userLocation]);
 
   const searchPressed = () => {
     fetch(`${api.base}weather?q=${search}&units=metric&APPID=${api.key}`)
       .then((res) => res.json())
       .then((result) => {
-        setWeather(result);
+        // Check if the result contains valid data
+        if (result.cod === 200) {
+          setCitiesWeather(prevState => [...prevState, result]);
+        } else {
+          console.error('City not found');
+        }
+      })
+      .catch((error) => {
+        console.error('Error fetching weather data:', error);
       });
   };
-  useEffect(() => {
-      fetch(`${api.base}weather?q=${city1}&units=metric&APPID=${api.key}`)
-        .then((res) => res.json())
-        .then((result) => {
-          setWeatherCity1(result);
-        });
-  }, []); 
-  
-  useEffect(() => {
-      fetch(`${api.base}weather?q=${city2}&units=metric&APPID=${api.key}`)
-        .then((res) => res.json())
-        .then((result) => {
-          setWeatherCity2(result);
-        });
-  }, []); 
-  
-  const icon = () => {
-    const description = weather.weather[0].description;
-    const rains = 'rain';
-    const clouds = 'clouds';
-    if(description.includes(rains)){
-      return <img src={rain} className="weather-icon"/>
-    } else if(description.includes(clouds)){
-      return <img src={cloud} className="weather-icon"/>
-    }
-    else{
-      return <img src={clear} className="weather-icon"/>
-    }
-  }
 
-  const iconCity1 = () => {
-    const description = weatherCity1.weather[0].description;
-    const rains = 'rain';
-    const clouds = 'clouds';
-    if(description.includes(rains)){
-      return <img src={rain} className="weather-icon"/>
-    } else if(description.includes(clouds)){
-      return <img src={cloud} className="weather-icon"/>
-    }
-    else{
-      return <img src={clear} className="weather-icon"/>
-    }
-  }
-  const iconCity2 = () => {
-    const description = weatherCity2.weather[0].description;
-    const rains = 'rain';
-    const clouds = 'clouds';
-    if(description.includes(rains)){
-      return <img src={rain} className="weather-icon"/>
-    } else if(description.includes(clouds)){
-      return <img src={cloud} className="weather-icon"/>
-    }
-    else{
-      return <img src={clear} className="weather-icon"/>
+  const getIcon = (description) => {
+    if (description.includes('rain')) {
+      return rain;
+    } else if (description.includes('clouds')) {
+      return cloud;
+    } else {
+      return clear;
     }
   }
 
   return (
     <>
-    <div className="first">
-    <input type='text' placeholder='Search for the city name' className="search" onChange={(e) => setSearch(e.target.value)}/>
-    <button className="search" onClick={searchPressed}>Search</button>
-    </div>
-{typeof weather.main !== "undefined" ? (
-<div class="weather-card">
-    <div class="weather-data">
-        <div class="location">{weather.name}</div>
-        <div class="temperature">{weather.main.temp}°C</div>
-        <div class="description">({weather.weather[0].description})</div>
-        {icon()}
-    </div>
-</div>
-) : (
-  ""
-)}
-{typeof weatherCity1.main !== "undefined" ? (
-<div class="weather-card">
-    <div class="weather-data">
-        <div class="location">{weatherCity1.name}</div>
-        <div class="temperature">{weatherCity1.main.temp}°C</div>
-        <div class="description">({weatherCity1.weather[0].description})</div>
-        {iconCity1()}
-    </div>
-</div>
-) : (
-  ""
-)}
-{typeof weatherCity2.main !== "undefined" ? (
-<div class="weather-card">
-    <div class="weather-data">
-        <div class="location">{weatherCity2.name}</div>
-        <div class="temperature">{weatherCity2.main.temp}°C</div>
-        <div class="description">({weatherCity2.weather[0].description})</div>
-        {iconCity2()}
-    </div>
-</div>
-) : (
-  ""
-)}
+      <div className="first">
+        <input type='search' placeholder='Search for the city name' className="search" onChange={(e) => setSearch(e.target.value)} />
+        <button className="start" onClick={searchPressed}>Search</button>
+      </div>
+      {citiesWeather.map((cityWeather, index) => (
+        <div key={index} className="weather-card">
+          <div className="weather-data">
+            <div className="location">{cityWeather.name}</div>
+            <div className="temperature">{cityWeather.main && cityWeather.main.temp}°C</div>
+            <div className="description">({cityWeather.weather && cityWeather.weather[0].description})</div>
+            <img src={cityWeather.weather ? getIcon(cityWeather.weather[0].description) : clear} className="weather-icon" alt="Weather Icon" />
+          </div>
+        </div>
+      ))}
     </>
-  )
+  );
 }
 
-export default App
+export default App;
